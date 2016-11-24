@@ -14,6 +14,7 @@ using std::endl;
 using std::ifstream;
 using std::ios;
 using std::max;
+using std::cin;
  
 typedef unsigned int uint;
 
@@ -21,7 +22,7 @@ double* calcByRows(uint m, uint n, vector<vector<double>> &left, vector<double> 
 {
   uint l = m*rank/size;
   uint r = m*(rank+1)/size;
-  uint length = r-l+1;
+  uint length = r-l;
   double* part = new double[length];
   
   for (uint i=l; i<r; ++i)
@@ -40,7 +41,6 @@ double* calcByCols(uint m, uint n, vector<vector<double>> &left, vector<double> 
 {
 	uint l = n*rank/size;
   uint r = n*(rank+1)/size;
-  uint length = r-l+1;
   double* part = new double[m];
   
   for (uint i=0; i<m; ++i)
@@ -203,6 +203,33 @@ int main (int argc, char* argv[])
       outputFile << result[j] << " ";
 		}
 		outputFile.close();
+		
+		vector<double> times(size);
+    times[0] = end-begin;
+    
+		for (uint i=1; i<size; ++i)
+		{	
+			MPI_Recv(&times[i], 1, MPI_DOUBLE, i, 2, MPI_COMM_WORLD, &stat);
+		}
+		
+		double maxtime = times[0];
+		double sumtime = times[0];
+		for (uint i=1; i<size; ++i)
+		{
+			sumtime+=times[i];
+			if (times[i] > maxtime) maxtime=times[i];
+		}
+		
+		if (size != 1)
+		{
+		  double t1;
+		  cin >> t1;
+		  cout << size << " " << maxtime << " " << t1/maxtime << " " << t1/(maxtime*size) << endl;
+		}
+		else
+		{
+		  cout << maxtime;
+		}
   }
   else
   {
@@ -217,13 +244,20 @@ int main (int argc, char* argv[])
   	{
       part = calcByCols(m, n, left, right, rank, size);
   	}
+  	
   	uint l = m*rank/size;
     uint r = m*(rank+1)/size;
-    uint length = r-l;
+    uint length;
+    if (m > n) length = r-l;
+    else length = m;
+    
   	MPI_Send(part, length, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
     delete part;
   	
   	double end=MPI_Wtime();
+  	
+  	double t = end-begin;
+		MPI_Send(&t, 1, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
   }
 
   MPI_Finalize();
